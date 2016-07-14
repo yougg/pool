@@ -83,7 +83,7 @@ func NewBlocking(workerNum int) (s Scheduler, err error) {
 	if workerNum < 1 {
 		return nil, errors.New("The number of worker is error.")
 	}
-	return New(LINKED_BLOCKING_QUEUE, 1, workerNum)
+	return New(LINKED_BLOCKING_QUEUE, workerNum, workerNum)
 }
 
 // 创建新的线程池队列调度器
