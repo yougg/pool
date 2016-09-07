@@ -14,14 +14,14 @@ func MyTask(args ...interface{}) {
 func TestNewPool(t *testing.T) {
 	t.Log("Test array blocking queue scheduled pool")
 
-	p, err := New(ARRAY_BLOCKING_QUEUE, -1, 5)
+	p, err := New(ArrayBlockingQueue, -1, 5)
 	if nil == err {
 		t.Error("Create new array blocking queue failed.", err)
 		return
 	}
 
 	// 初始化一个队列容量10,并发数量5的线程池队列调度器
-	p, err = New(ARRAY_BLOCKING_QUEUE, 10, 5)
+	p, err = New(ArrayBlockingQueue, 10, 5)
 	if nil != err {
 		t.Error("Create new array blocking queue failed.", err)
 		return
@@ -52,7 +52,7 @@ func TestBlockingPool(t *testing.T) {
 }
 
 func TestWaitAll(t *testing.T) {
-	p, err := New(ARRAY_BLOCKING_QUEUE, 10, 5)
+	p, err := New(ArrayBlockingQueue, 10, 5)
 	if nil != err {
 		t.Error("Create new array blocking queue failed.", err)
 		return
@@ -64,7 +64,7 @@ func TestWaitAll(t *testing.T) {
 		p.Add(Job{
 			Run: func(args ...interface{}) {
 				if x, ok := args[0].(int); ok {
-					time.Sleep(time.Duration(x * 100) * time.Millisecond)
+					time.Sleep(time.Duration(x*100) * time.Millisecond)
 				}
 				if wg, ok := args[1].(*sync.WaitGroup); ok {
 					wg.Done()
@@ -87,19 +87,15 @@ func TestGetAllResult(t *testing.T) {
 	// 使用10个并行任务计算1到100的和,最后统计总和
 	ch := make(chan int)
 	for i := 1; i < 100; i += 10 {
-		p.Join(func(args ...interface{}) {
-			var i int
-			if x, ok := args[0].(int); ok {
-				i = x
-			}
-			if ch, ok := args[1].(chan int); ok {
-				var s int
+		p.Join(func(i int) Task {
+			return func(args ...interface{}) {
+				s := 0
 				for j := i; j < (i + 10); j++ {
 					s += j
 				}
 				ch <- s
 			}
-		}, i, ch)
+		}(i))
 	}
 
 	sum, count := 0, 0
@@ -109,21 +105,21 @@ func TestGetAllResult(t *testing.T) {
 			break
 		}
 	}
+	close(ch)
 
 	t.Log("Sum 1 to 100 result:", sum)
 }
 
 func BenchmarkNewPool(b *testing.B) {
 	// 初始化一个队列容量10,并发数量5的线程池队列调度器
-	p, _ := New(ARRAY_BLOCKING_QUEUE, 10, 5)
-	p.Join(func(args ...interface{}) {
-		x, sum := 0, 0
-		var ok bool
-		if x, ok = args[0].(int); ok {
-			for j := 0; j <= x; j++ {
+	p, _ := New(ArrayBlockingQueue, 10, 5)
+	p.Join(func(n int) Task {
+		return func(args ...interface{}) {
+			sum := 0
+			for j := 0; j <= n; j++ {
 				sum += j
 			}
+			b.Logf("sum 0 to %d :\t%d\n", n, sum)
 		}
-		b.Logf("sum 0 to %d :\t%d\n", x, sum)
-	}, b.N)
+	}(b.N))
 }

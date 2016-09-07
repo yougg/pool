@@ -73,7 +73,7 @@ func (p *pool) schedule() {
 // 队列长度: 1000
 // 并发数量: 10
 func Default() (s Scheduler) {
-	s, _ = New(ARRAY_BLOCKING_QUEUE, 1000, 10)
+	s, _ = New(ArrayBlockingQueue, 1000, 10)
 	return s
 }
 
@@ -83,7 +83,7 @@ func NewBlocking(workerNum int) (s Scheduler, err error) {
 	if workerNum < 1 {
 		return nil, errors.New("The number of worker is error.")
 	}
-	return New(LINKED_BLOCKING_QUEUE, workerNum, workerNum)
+	return New(LinkedBlockingQueue, workerNum, workerNum)
 }
 
 // 创建新的线程池队列调度器
@@ -98,20 +98,20 @@ func New(qType QueueType, queueCap, workerNum int) (s Scheduler, err error) {
 	var q Queue
 	bq := make(basequeue, queueCap)
 	switch qType {
-	case SYNCHRONOUS_QUEUE, PRIORITY_BLOCKING_QUEUE:
+	case SynchronousQueue, PriorityBlockingQueue:
 		// TODO 功能暂时未实现
 		// q = synchronousqueue{bq}
 		// q = priorityqueue{bq}
-	case ARRAY_BLOCKING_QUEUE:
+	case ArrayBlockingQueue:
 		q = arrayqueue{bq}
-	case LINKED_BLOCKING_QUEUE:
+	case LinkedBlockingQueue:
 		q = linkedqueue{bq}
 	default:
 		q = bq
 	}
 
 	s = &pool{
-		queue: q,
+		queue:   q,
 		workers: newWorkers(workerNum, q),
 	}
 

@@ -4,10 +4,10 @@ package pool
 type QueueType int
 
 const (
-	SYNCHRONOUS_QUEUE       QueueType = iota // 同步阻塞队列
-	ARRAY_BLOCKING_QUEUE                     // 有界队列, 超过队列容量时新工作入队直接失败
-	LINKED_BLOCKING_QUEUE                    // 无界队列, 新工作入队时一直等待直到入队成功
-	PRIORITY_BLOCKING_QUEUE                  // 优先级队列
+	SynchronousQueue      QueueType = iota // 同步阻塞队列
+	ArrayBlockingQueue                     // 有界队列, 超过队列容量时新工作入队直接失败
+	LinkedBlockingQueue                    // 无界队列, 新工作入队时一直等待直到入队成功
+	PriorityBlockingQueue                  // 优先级队列
 )
 
 // 队列接口
