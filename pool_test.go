@@ -11,6 +11,17 @@ func MyTask(args ...interface{}) {
 	time.Sleep(100 * time.Millisecond)
 }
 
+func TestDefault(t *testing.T) {
+	t.Log("Test default array blocking queue scheduled pool")
+
+	p := Default()
+
+	p, err := New(SynchronousQueue, 10, 10)
+	if nil != err || nil == p {
+		t.Error("Create default pool error.")
+	}
+}
+
 func TestNewPool(t *testing.T) {
 	t.Log("Test array blocking queue scheduled pool")
 
@@ -19,6 +30,8 @@ func TestNewPool(t *testing.T) {
 		t.Error("Create new array blocking queue failed.", err)
 		return
 	}
+
+	p, err = New(QueueType(-1), 10, 10)
 
 	// 初始化一个队列容量10,并发数量5的线程池队列调度器
 	p, err = New(ArrayBlockingQueue, 10, 5)
@@ -32,13 +45,18 @@ func TestNewPool(t *testing.T) {
 		result[i] = p.Join(MyTask, i)
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Log("Array Blocking Result:", result)
+	t.Log("Array Blocking Result:", len(result))
 }
 
 func TestBlockingPool(t *testing.T) {
 	t.Log("Test linked blocking queue scheduled pool")
+	p, err := NewBlocking(0)
+	if nil == err {
+		t.Error("Create new linked blocking queue failed.", err)
+		return
+	}
 	// 初始化一个并发数量10的线程池队列调度器
-	p, err := NewBlocking(10)
+	p, err = NewBlocking(10)
 	if nil != err {
 		t.Error("Create new linked blocking queue failed.", err)
 		return
@@ -48,7 +66,7 @@ func TestBlockingPool(t *testing.T) {
 	for i := 101; i < 150; i++ {
 		result[i] = p.Join(MyTask, i)
 	}
-	t.Log("Linked Blocking Result:", result)
+	t.Log("Linked Blocking Result:", len(result))
 }
 
 func TestWaitAll(t *testing.T) {

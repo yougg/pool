@@ -2,7 +2,6 @@ package pool
 
 import (
 	"errors"
-	"time"
 )
 
 // 调度器接口
@@ -12,15 +11,18 @@ type Scheduler interface {
 	Add(job Job) bool
 
 	// 添加任务到线程池队列中
-	// 如果队列已满,则返回失败
+	// 当队列容量已满时:
+	// 有界队列, 超过队列容量时新工作入队直接失败
+	// 无界队列, 新工作入队时一直等待直到入队成功
 	Join(t Task, args ...interface{}) bool
 	schedule()
 }
 
 // 调度器接口实现, 线程池
 type pool struct {
-	queue   Queue
-	workers []*worker
+	queue           Queue
+	inputForWorkers Queue
+	workers         chan worker
 }
 
 // 添加工作到线程池队列中
@@ -41,30 +43,11 @@ func (p *pool) Join(t Task, args ...interface{}) bool {
 // 开启并发线程调度
 // 线程池工作者worker的数量会动态增减
 func (p *pool) schedule() {
-	duration := time.Second
-	workingNum := 0
-	for ; ; time.Sleep(duration) {
-		switch {
-		case p.queue.length() > 0 && workingNum < len(p.workers):
-			for _, w := range p.workers {
-				if w.idle {
-					w.start()
-					duration = 100 * time.Millisecond
-					workingNum++
-					break
-				}
-			}
-		case p.queue.length() == 0 && workingNum > 0:
-			for _, w := range p.workers {
-				if w.idle {
-					w.stop()
-					duration = 10 * time.Second
-					workingNum--
-					break
-				}
-			}
-		default:
-			duration = time.Second
+	for {
+		p.inputForWorkers.add(<-p.queue.poll())
+		select {
+		case idleWorker := <-p.workers:
+			idleWorker.start()
 		}
 	}
 }
@@ -95,24 +78,32 @@ func New(qType QueueType, queueCap, workerNum int) (s Scheduler, err error) {
 		return nil, errors.New("The max queue capcity or max worker number are error.")
 	}
 
-	var q Queue
-	bq := make(basequeue, queueCap)
+	var dataQueue Queue
+	var dispatcherQueue Queue
+	//dispatcher can hold more than number of workers
+	//i.e when all workers busy, act like a buffer
+	dataq := make(basequeue, queueCap)
+	dispatchq := make(basequeue, queueCap*10)
 	switch qType {
 	case SynchronousQueue, PriorityBlockingQueue:
 		// TODO 功能暂时未实现
-		// q = synchronousqueue{bq}
-		// q = priorityqueue{bq}
+		dataQueue = dataq
+		dispatcherQueue = dispatchq
 	case ArrayBlockingQueue:
-		q = arrayqueue{bq}
+		dataQueue = arrayqueue{dataq}
+		dispatcherQueue = arrayqueue{dispatchq}
 	case LinkedBlockingQueue:
-		q = linkedqueue{bq}
+		dataQueue = linkedqueue{dataq}
+		dispatcherQueue = linkedqueue{dispatchq}
 	default:
-		q = bq
+		dataQueue = dataq
+		dispatcherQueue = dispatchq
 	}
-
+	workers := newWorkers(workerNum, dataQueue)
 	s = &pool{
-		queue:   q,
-		workers: newWorkers(workerNum, q),
+		queue:           dispatcherQueue,
+		workers:         workers,
+		inputForWorkers: dataQueue,
 	}
 
 	go s.schedule()
